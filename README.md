@@ -1,3 +1,57 @@
+# Sistema de Fluxo de Caixa — Desafio Arquiteto de Soluções
+
+## Como avaliar este projeto
+
+O enunciado prioriza **decisões e representações arquiteturais**; o código é um POC que valida o núcleo do domínio (CQRS + fila). Sugestão de leitura para o avaliador (~10 min):
+
+| Ordem | O que avaliar | Onde |
+|:-----:|---------------|------|
+| 1 | Visão de contexto e capacidades de negócio | [C4 Nível 1](docs/architecture/c4-context.md) |
+| 2 | Segregação de serviços e responsabilidades | [C4 Nível 2](docs/architecture/c4-containers.md) |
+| 3 | Trade-offs e alternativas rejeitadas | [ADRs](docs/adr/README.md) |
+| 4 | Requisitos com porquê e regras de negócio | [Requisitos Funcionais](docs/requirements/requisitos-funcionais.md) |
+| 5 | RNFs mensuráveis (incl. 50 req/s e 5% perda) | [Requisitos Não Funcionais](docs/requirements/requisitos-nao-funcionais.md) |
+| 6 | RBAC, JWT e critérios de integração | [RBAC](docs/security/rbac.md) |
+| 7 | Rastreabilidade enunciado → documento | [`docs/README.md`](docs/README.md) |
+| 8 | Fluxos técnicos e execução local | §13 e §15 abaixo · `src/` · `test/` |
+
+**POC implementado em código:** registro de lançamentos, fila SQS (LocalStack), worker de consolidação, consulta de saldo, testes unitários/integração.  
+**Especificado na documentação (produção):** Cognito, RBAC multi-tenant, Redis, Lambda, DLQ — ver coluna *Estado no POC* nos ADRs.
+
+---
+
+# 0. Documentação de Arquitetura e Governança
+
+Este README cobre operação, diagramas de sequência e FinOps. A documentação arquitetural formal está em [`docs/`](docs/README.md), alinhada ao enunciado do desafio.
+
+### Enunciado do desafio → onde encontrar
+
+| Requisito | Documento |
+|-----------|-----------|
+| Domínios funcionais e capacidades | [§7](#7-domínios-funcionais-e-capacidades-arquitetura-de-negócio) · [C4 L1](docs/architecture/c4-context.md) |
+| Refinamento de RFs | [§8](#8-requisitos-funcionais-rf) · [Requisitos Funcionais](docs/requirements/requisitos-funcionais.md) |
+| Refinamento de RNFs | [§9](#9-requisitos-não-funcionais-rnf) · [RNFs](docs/requirements/requisitos-nao-funcionais.md) |
+| Arquitetura Alvo | [§5](#5️-arquitetura-final-novo-sistema) · [C4 L2](docs/architecture/c4-containers.md) |
+| Justificativa de tecnologias | [§10](#10-justificativa-da-arquitetura-e-tecnologias) · [ADRs](docs/adr/README.md) |
+| Arquitetura de Transição | [§3](#3estratégia-de-migração--strangler-fig-pattern) · [§6](#6-arquitetura-de-transição-migração-do-legado---strangler) · [ADR-0001](docs/adr/0001-strangler-fig-migration.md) |
+| Estimativa de custos | [§14](#14-finops-high-level) |
+| Monitoramento e Observabilidade | [§11](#11-monitoramento-e-observabilidade) |
+| Segurança (consumo de serviços) | [§12](#12-segurança-e-integração) · [RBAC](docs/security/rbac.md) |
+| Fluxos técnicos (sequência) | [§13](#13-diagramas-de-sequência-high-level) |
+| Testes | [§16](#16-testes-funcionais-e-unitarios) |
+| Como rodar localmente | [§15](#15como-rodar-a-aplicação-localmente) |
+| Evoluções futuras | [§18](#18-proximos--passos) |
+
+### RNF crítico do enunciado
+
+| Regra | Atendimento |
+|-------|-------------|
+| Lançamentos disponíveis mesmo se consolidado cair | CQRS + fila — [ADR-0002](docs/adr/0002-cqrs-event-driven-consolidation.md) |
+| Consolidado: 50 req/s em pico, máx. 5% de perda | Fila + retry/DLQ — [ADR-0005](docs/adr/0005-sqs-async-messaging.md) · [RNFs](docs/requirements/requisitos-nao-funcionais.md) |
+
+Índice completo: [`docs/README.md`](docs/README.md)
+
+---
 
 # 1. O Problema / Contexto Atual
 O sistema atual é composto por:
@@ -223,6 +277,7 @@ flowchart TD
 
 # 7. Domínios Funcionais e Capacidades (Arquitetura de negócio)
 
+> Alinhamento com o enunciado: *serviço de lançamentos* e *serviço de consolidado diário*. Visão C4: [Nível 1](docs/architecture/c4-context.md) · [Nível 2](docs/architecture/c4-containers.md)
 
 **Lançamentos**
 ---------------
@@ -280,9 +335,11 @@ flowchart TD
 *   Tracing (X-Ray)
     
 
-#8.  Requisitos Funcionais (RF)
+# 8. Requisitos Funcionais (RF)
 
+> **Versão refinada** (objetivo de negócio, regras, critérios de aceite): [docs/requirements/requisitos-funcionais.md](docs/requirements/requisitos-funcionais.md)
 
+Resumo:
 *   **RF01** Registrar lançamento financeiro
     
 *   **RF02** Consultar lançamentos
@@ -310,7 +367,9 @@ flowchart TD
 
 # 9. Requisitos Não Funcionais (RNF)
 
+> **Versão refinada** (métricas, medição, ligação com ADRs e RNF crítico do enunciado): [docs/requirements/requisitos-nao-funcionais.md](docs/requirements/requisitos-nao-funcionais.md)
 
+Resumo:
 ### **Desempenho**
 
 *   Saldo diário: < 50 ms (Redis)
@@ -320,10 +379,9 @@ flowchart TD
 
 ### **Escalabilidade**
 
-*   Suporte a 50 req/s
-    
-*   Fila absorve picos
-    
+*   Consolidado: ≥ 50 req/s em pico (eventos na fila)
+*   Perda máxima no consolidado: ≤ 5%
+*   Fila absorve picos de escrita sem derrubar lançamentos
 
 ### **Disponibilidade**
 
@@ -331,8 +389,7 @@ flowchart TD
     
 *   Tolerância a falhas
     
-*   Independência entre serviços
-    
+*   Lançamentos disponíveis mesmo se o consolidado cair (CQRS + fila)
 
 ### **Segurança**
 
@@ -360,6 +417,8 @@ flowchart TD
     
 
 # 10. Justificativa da Arquitetura e Tecnologias
+
+> **Decisões formalizadas com alternativas e trade-offs:** consulte os [ADRs em `docs/adr/`](docs/adr/README.md). Esta seção é um resumo executivo; os ADRs são a fonte canônica das justificativas.
 
 Atributos:
 ### ✅ Escalabilidade
@@ -394,54 +453,39 @@ Pay-per-use, cache reduz carga, Aurora Serverless ajusta capacidade.
 
 Permite substituir o legado por partes.
 
-Produtos:
+Produtos (detalhes nos ADRs):
 
-### **Serverless**
+### **Serverless** — [ADR-0007](docs/adr/0007-serverless-api-gateway-lambda.md)
 
 *   Escalabilidade automática
-    
 *   Baixo custo
-    
 *   Alta disponibilidade
-    
 *   Zero manutenção
-    
 
-### **Aurora Serverless**
+### **Aurora Serverless** — [ADR-0003](docs/adr/0003-aurora-transactional-store.md)
 
 *   Transações ACID
-    
 *   Consistência forte
-    
 *   SQL completo
-    
 
-### **Redis**
+### **Redis** — [ADR-0004](docs/adr/0004-redis-read-model.md)
 
 *   Leitura ultrarrápida
-    
 *   Ideal para saldos consolidados
-    
 
-### **SQS/EventBridge**
+### **SQS** — [ADR-0005](docs/adr/0005-sqs-async-messaging.md)
 
 *   Desacoplamento total
-    
 *   Resiliência
-    
 *   Reprocessamento via DLQ
-    
 
-### **Lambda**
+### **CQRS / Eventos** — [ADR-0002](docs/adr/0002-cqrs-event-driven-consolidation.md)
 
-*   Simples
-    
-*   Escalável
-    
-*   Barato
+*   Escrita desacoplada da consolidação
+*   Resiliência entre lançamentos e consolidado
+# 11. Monitoramento e Observabilidade
 
-
-# 11. Monitoramento e Observabilidade**
+> Detalhamento de RNFs: [RNF07](docs/requirements/requisitos-nao-funcionais.md#rnf07--observabilidade)
 
 ### **Logs**
 
@@ -475,7 +519,9 @@ Produtos:
 *   AWS X-Ray
 
 
-# 12. Segurança e Integração**
+# 12. Segurança e Integração
+
+> RBAC, papéis, claims JWT e matriz de endpoints: [docs/security/rbac.md](docs/security/rbac.md) · [ADR-0006](docs/adr/0006-cognito-identity-provider.md) · [ADR-0009](docs/adr/0009-rbac-jwt-claims.md)
 ==========================
 
 ### **Autenticação e Autorização**
@@ -621,7 +667,7 @@ docker-compose up -d
 ```  
 
 2. Verificar connection strings
-- Edit the `Default` connection string in `src/Lancamentos.Api/appsettings.json` and `src/Relatorios.Api/appsettings.json`  and `src/Consolidacao.Worker/appsettings.json` or set an environment variable:
+- Edit the `Default` connection string in `src/Lancamentos.Api/appsettings.json`, `src/Relatorios.Api/appsettings.json` and `src/Consolidador.Worker/appsettings.json`, or set an environment variable:
 3. Build solution
 4. Aplicar migrations se necessário
   ```bash
@@ -647,7 +693,7 @@ API responsável por registrar lançamentos financeiros (crédito e débito) em 
 
 ### ➕ Registrar Lançamento
 
-- `POST /lancamentos`  
+- `POST /api/lancamentos`  
 - Descrição: Registra um lançamento financeiro para uma data específica.
 
 ### 📥 Request
@@ -656,12 +702,22 @@ API responsável por registrar lançamentos financeiros (crédito e débito) em 
   - `Content-Type: application/json`
 
 - Body (exemplo):
+
+```json
+{
+  "valor": 150.00,
+  "descricao": "Venda de produto",
+  "data": "2025-01-10",
+  "tipo": 1
+}
+```
+
 ### 🧾 Campos do Request
 
 | Campo     | Tipo                | Obrigatório | Descrição                     |
 |-----------|---------------------|-------------|-------------------------------|
-| `valor`   | number (double)     | ✅          | Valor do lançamento           |
-| `descricao` | string            | ❌          | Descrição opcional            |
+| `valor`   | number (double)     | ✅          | Valor do lançamento (> 0)     |
+| `descricao` | string            | ✅          | Descrição do lançamento       |
 | `data`    | string (date)       | ✅          | Data no formato `yyyy-MM-dd`  |
 | `tipo`    | integer             | ✅          | Tipo do lançamento (enum)     |
 
@@ -676,17 +732,13 @@ API responsável por registrar lançamentos financeiros (crédito e débito) em 
 
 ### 📤 Response
 
-- Sucesso:
-  - Status: `200 OK`
-  - Mensagem: "Lançamento registrado com sucesso."
+- Sucesso: `201 Created` (corpo vazio no POC atual)
 
-Exemplo de resposta:
 ### ⚠️ Possíveis Erros
 
 | Status | Descrição                         |
 |--------|-----------------------------------|
-| 400    | Dados inválidos                   |
-| 422    | Violação de regra de negócio      |
+| 400    | Dados inválidos (validação)       |
 | 500    | Erro interno                      |
 
 ---
@@ -706,11 +758,14 @@ API responsavel por gerar o relatório consolidado do dia.
 **Formato da data do relatório:** `yyyy-MM-dd`
 
 ## Exemplo de requisição
-`GET /relatorios/2025-01-10`
+`GET /api/relatorios/2025-01-10`
 
-## Response (200 OK)
-Relatório consolidado do dia.
-### Campos do Response
+## Response
+
+- `200 OK` — relatório consolidado do dia (corpo JSON com `dia` e `saldo`)
+- `204 No Content` — dia sem consolidação registrada
+
+### Campos do Response (200)
 | Campo | Tipo            | Descrição                     |
 |-------|-----------------|-------------------------------|
 | dia   | string (date)   | Data do relatório (yyyy-MM-dd)|
@@ -720,7 +775,6 @@ Relatório consolidado do dia.
 | Status | Descrição                  |
 |--------|---------------------------|
 | 400    | Data inválida             |
-| 404    | Relatório não encontrado  |
 | 500    | Erro interno              |
 
 ### Observações Técnicas
@@ -731,7 +785,10 @@ Relatório consolidado do dia.
 - Compatível com event-driven architecture
 
 ### Exemplo de uso (curl)
-    curl -X GET http://localhost:5000/relatorios/2025-01-10# Relatórios — API de Consulta
+
+```bash
+curl -X GET http://localhost:5001/api/relatorios/2025-01-10
+```
 
 # (Frontend)
 
@@ -753,28 +810,18 @@ Print screen da tela:
 
 # 18. Proximos  passos 
 
-Falhas transitórias sejam reprocessadas (retry) dlq
+Evoluções planejadas (documentadas nos ADRs quando aplicável):
 
-Mensagens duplicadas não gerem efeito colateral 
-
-Implementar log e observability
-
-Implementar autenticação e autorização
-
-Implementar cache em diversas camadas
-
-Implementar testes de contrato de api
-
-Implementar testes de perfomance
-
-Implementar demais testes funcionais e unitarios
-
-Segregar os banco de dados se necessário (Redis) 
-
-Implementar infra com código utilizando cloud formation/terraform
-
-Adicionar novos/acrescentar requisitos funcionais 
-
-Deploy arquitetura na AWS (CI/CD)
-
+| Item | Referência |
+|------|------------|
+| Retry e DLQ para falhas transitórias | [ADR-0005](docs/adr/0005-sqs-async-messaging.md) |
+| Idempotência / mensagens duplicadas | [ADR-0008](docs/adr/0008-consolidation-full-recalc-strategy.md) |
+| Logs e observability | [RNF07](docs/requirements/requisitos-nao-funcionais.md) · [§11](#11-monitoramento-e-observabilidade) |
+| Autenticação e autorização (RBAC) | [ADR-0006](docs/adr/0006-cognito-identity-provider.md) · [RBAC](docs/security/rbac.md) |
+| Cache Redis (read model) | [ADR-0004](docs/adr/0004-redis-read-model.md) |
+| Testes de contrato e performance | — |
+| Segregação de bancos (write/read) | [ADR-0003](docs/adr/0003-aurora-transactional-store.md) · [ADR-0004](docs/adr/0004-redis-read-model.md) |
+| IaC (CloudFormation/Terraform) | — |
+| Novos requisitos funcionais | [Requisitos Funcionais](docs/requirements/requisitos-funcionais.md) |
+| Deploy AWS (CI/CD) | [ADR-0007](docs/adr/0007-serverless-api-gateway-lambda.md) |
 
