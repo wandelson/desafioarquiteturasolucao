@@ -1,0 +1,21 @@
+@startuml seq-rf02-consultar-lancamentos
+title RF02 - Consultar lancamentos (especificado)
+
+actor Comerciante as User
+participant "API Gateway" as APIGW
+participant "API Lancamentos" as ApiLanc
+database "Aurora / PostgreSQL" as DB
+
+User -> APIGW: GET /api/lancamentos?de=&ate=&tipo=\nBearer JWT
+APIGW -> APIGW: Valida JWT\nlancamentos:read
+APIGW -> ApiLanc: Encaminha
+
+ApiLanc -> ApiLanc: Extrai merchantId do token
+ApiLanc -> DB: SELECT * FROM lancamentos\nWHERE merchant_id = :merchant\nAND filtros + paginacao
+DB --> ApiLanc: Pagina de resultados
+ApiLanc --> APIGW: 200 OK { items, totalCount }
+APIGW --> User: Lista de lancamentos
+
+note over ApiLanc: Status POC: endpoint nao implementado
+
+@enduml

@@ -1,0 +1,38 @@
+@startuml seq-rf09-rf10-autenticacao
+title RF09 + RF10 - Autenticacao OIDC e autorizacao RBAC
+
+actor Comerciante
+participant "Front Blazor" as Front
+participant "Amazon Cognito" as Cognito
+participant "API Gateway" as APIGW
+participant "API .NET" as API
+
+== Login ==
+Comerciante -> Front: Acessa aplicacao
+Front -> Cognito: Authorization Code + PKCE
+Cognito --> Comerciante: Tela de login
+Comerciante -> Cognito: Credenciais
+Cognito --> Front: access_token + id_token
+note right of Cognito: claims: merchant_id,\ncognito:groups, scopes
+
+== Chamada protegida ==
+Comerciante -> Front: Registrar lancamento
+Front -> APIGW: POST /api/lancamentos\nAuthorization: Bearer {token}
+APIGW -> Cognito: Valida assinatura JWT (JWKS)
+alt Token invalido ou expirado
+    APIGW --> Front: 401 Unauthorized
+else Token valido
+    APIGW -> API: Request + claims
+    API -> API: Policy RBAC\n(merchant_operator | admin)
+    alt Sem permissao
+        API --> APIGW: 403 Forbidden
+    else Autorizado
+        API -> API: Filtra por merchantId do token
+        API --> APIGW: 201 Created
+    end
+    APIGW --> Front: Resposta
+end
+
+note over API: Status POC: auth nao implementada
+
+@enduml

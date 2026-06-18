@@ -1,0 +1,15 @@
+@startuml seq-migracao-etapas
+title Migracao Strangler Fig - Etapas
+
+|Comerciante / Plataforma|
+start
+:1. Sistema Legado em Producao;
+:2. Criar Novo Front Blazor (S3 + CloudFront);
+:3. Integrar Cognito OIDC;
+:4. Criar APIs Serverless (API Gateway + Lambda);
+:5. Redirecionar funcionalidades migradas;
+:6. Expandir novo sistema e estrangular legado;
+:7. Desligar o Legado;
+stop
+
+@enduml

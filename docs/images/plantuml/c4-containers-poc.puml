@@ -1,0 +1,30 @@
+@startuml c4-containers-poc
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C4 Nivel 2 - Containers\nPOC Local (repositorio atual)
+
+Person(dev, "Desenvolvedor / Avaliador", "Executa e testa o POC")
+
+System_Boundary(poc, "POC Fluxo de Caixa") {
+    Container(front, "Front-end Blazor WASM", "ASP.NET Core + Blazor", "Tela de fluxo de caixa")
+    Container(api_lanc, "Lancamentos.Api", "ASP.NET Core 10", "POST /api/lancamentos")
+    Container(worker, "Consolidador.Worker", ".NET Worker + MassTransit", "Consome fila lancamento-criado")
+    Container(api_rel, "Relatorios.Api", "ASP.NET Core 10", "GET /api/relatorios/{dia}")
+    ContainerDb(pg, "PostgreSQL", "PostgreSQL 16", "lancamentos + saldos_diarios")
+    ContainerQueue(sqs, "Fila SQS", "LocalStack SQS", "Fila lancamento-criado")
+}
+
+Rel(dev, front, "Navega", "HTTPS")
+Rel(dev, api_lanc, "Swagger", "HTTP")
+Rel(dev, api_rel, "Swagger", "HTTP")
+Rel(front, api_lanc, "Registra lancamento", "HTTP")
+Rel(front, api_rel, "Consulta relatorio", "HTTP")
+Rel(api_lanc, pg, "INSERT lancamentos", "SQL")
+Rel(api_lanc, sqs, "Send LancamentoCriado", "SQS")
+Rel(sqs, worker, "Consume", "SQS")
+Rel(worker, pg, "UPSERT saldos_diarios", "SQL")
+Rel(api_rel, pg, "SELECT saldos_diarios", "SQL")
+
+@enduml

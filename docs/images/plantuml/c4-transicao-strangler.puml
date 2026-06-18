@@ -1,0 +1,42 @@
+@startuml c4-transicao-strangler
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title C4 - Arquitetura de Transicao (Strangler Fig)
+
+Person(comerciante, "Comerciante", "")
+
+System_Ext(cognito, "Amazon Cognito", "IdP unico OIDC")
+
+System_Boundary(legado_boundary, "Sistema Legado") {
+    Container(legacy_front, "Front Legado", "", "Integrado ao IdP")
+    Container(legacy_api, "API Legada", "", "")
+    ContainerDb(legacy_db, "Banco Legado", "", "")
+}
+
+System_Boundary(novo, "Novo Sistema AWS") {
+    Container(new_front, "Front Blazor", "S3 + CloudFront", "OIDC")
+    Container(apigw, "API Gateway", "", "JWT Authorizer")
+    Container(lambda_lanc, "Lambda Lancamentos", ".NET", "")
+    Container(lambda_rel, "Lambda Relatorios", ".NET", "")
+    ContainerDb(aurora, "Aurora", "PostgreSQL", "")
+    ContainerDb(redis, "Redis", "", "Saldos")
+}
+
+Rel(comerciante, legacy_front, "Usa")
+Rel(comerciante, new_front, "Usa")
+Rel(legacy_front, cognito, "SSO", "OIDC")
+Rel(new_front, cognito, "SSO", "OIDC")
+Rel(legacy_front, legacy_api, "API legada")
+Rel(legacy_api, legacy_db, "SQL")
+Rel(legacy_db, aurora, "CDC", "Replicacao")
+Rel(legacy_front, new_front, "Redirect relatorios", "HTTPS")
+Rel(legacy_front, apigw, "Lancamentos migrados", "HTTPS")
+Rel(new_front, apigw, "APIs", "HTTPS")
+Rel(apigw, lambda_lanc, "")
+Rel(apigw, lambda_rel, "")
+Rel(lambda_lanc, aurora, "SQL")
+Rel(lambda_rel, redis, "")
+Rel(lambda_rel, aurora, "SQL")
+
+@enduml

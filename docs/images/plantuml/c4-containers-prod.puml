@@ -1,0 +1,43 @@
+@startuml c4-containers-prod
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C4 Nivel 2 - Containers\nArquitetura-alvo (Producao AWS)
+
+Person(comerciante, "Comerciante", "Usuario do fluxo de caixa")
+
+System_Boundary(fluxo_caixa, "Sistema de Fluxo de Caixa") {
+    Container(cdn, "CDN + Static Hosting", "CloudFront + S3", "Distribui o front Blazor WASM")
+    Container(apigw, "API Gateway", "Amazon API Gateway HTTP API", "TLS, validacao JWT, roteamento")
+    Container(api_lanc, "API de Lancamentos", "AWS Lambda .NET", "Command side: valida, persiste, publica evento")
+    Container(worker, "Worker de Consolidacao", "AWS Lambda .NET", "Reage a eventos e recalcula saldo diario")
+    Container(api_rel, "API de Relatorios", "AWS Lambda .NET", "Query side: consulta saldo consolidado")
+    ContainerDb(aurora, "Banco Transacional", "Aurora Serverless v2 PostgreSQL", "Write model ACID")
+    ContainerDb(redis, "Cache de Saldos", "ElastiCache Redis", "Read model de saldos consolidados")
+    ContainerQueue(sqs, "Fila de Eventos", "Amazon SQS", "Desacoplamento, retry e DLQ")
+}
+
+System_Ext(cognito, "Amazon Cognito", "Emissao de JWT OIDC")
+System_Ext(cloudwatch, "CloudWatch", "Logs, metricas, alarmes")
+System_Ext(legado, "Sistema Legado", "Monolito em migracao")
+
+Rel(comerciante, cdn, "Acessa SPA", "HTTPS")
+Rel(comerciante, cognito, "Login", "HTTPS/OIDC")
+Rel(cdn, apigw, "Chama APIs", "HTTPS")
+Rel(apigw, cognito, "Valida JWT", "JWKS")
+Rel(apigw, api_lanc, "POST /lancamentos", "Lambda")
+Rel(apigw, api_rel, "GET /relatorios/{dia}", "Lambda")
+Rel(api_lanc, aurora, "Persiste lancamento", "SQL/TLS")
+Rel(api_lanc, sqs, "Publica LancamentoCriado", "SQS")
+Rel(sqs, worker, "Dispara consolidacao", "Event")
+Rel(worker, aurora, "Le lancamentos do dia", "SQL")
+Rel(worker, redis, "Atualiza saldo", "Redis")
+Rel(api_rel, redis, "Consulta saldo", "Redis")
+Rel(api_rel, aurora, "Fallback cache miss", "SQL")
+Rel(legado, aurora, "Replica historico", "CDC")
+Rel(api_lanc, cloudwatch, "Logs", "")
+Rel(worker, cloudwatch, "Logs", "")
+Rel(api_rel, cloudwatch, "Logs", "")
+
+@enduml

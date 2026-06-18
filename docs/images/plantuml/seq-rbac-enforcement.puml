@@ -1,0 +1,32 @@
+@startuml seq-rbac-enforcement
+title RF10 - Enforcement RBAC em camadas
+
+actor Cliente
+participant "API Gateway" as APIGW
+participant "Cognito JWKS" as JWKS
+participant "API .NET" as API
+participant "Repository" as Repo
+database "Aurora / Redis" as DB
+
+Cliente -> APIGW: Request HTTPS + Bearer JWT
+APIGW -> JWKS: Valida assinatura e exp
+alt Token invalido
+    APIGW --> Cliente: 401 Unauthorized
+else Token valido
+    APIGW -> API: Encaminha + claims
+    API -> API: Authorization Policy\n(cognito:groups, scopes)
+    alt Sem permissao
+        API --> APIGW: 403 Forbidden
+        APIGW --> Cliente: 403
+    else Autorizado
+        API -> API: Extrai merchantId do token
+        API -> Repo: Query com filtro tenant
+        Repo -> DB: WHERE merchant_id = :claim
+        DB --> Repo: Dados do tenant
+        Repo --> API: Resultado
+        API --> APIGW: 200 / 201
+        APIGW --> Cliente: Resposta
+    end
+end
+
+@enduml

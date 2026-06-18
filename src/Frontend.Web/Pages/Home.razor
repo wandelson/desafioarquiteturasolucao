@@ -1,0 +1,39 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<h1>📊 Desafio – Fluxo de Caixa</h1>
+
+<p>
+    Um pequeno comerciante precisa controlar o seu <strong>fluxo de caixa diário</strong>,
+    registrando <strong>lançamentos financeiros</strong> de <em>crédito</em> e <em>débito</em>.
+    Além disso, ele precisa consultar um <strong>relatório diário consolidado</strong>,
+    que apresente o saldo total do dia.
+</p>
+
+<hr />
+
+<h3>📌 Requisitos Funcionais</h3>
+
+<ul>
+    <li>Registrar lançamentos de <strong>crédito</strong> e <strong>débito</strong></li>
+    <li>Consultar relatório diário com <strong>saldo consolidado</strong></li>
+</ul>
+
+<hr />
+
+<h3>⚙️ Requisitos Não Funcionais</h3>
+
+<ul>
+    <li>
+        O serviço de <strong>registro de lançamentos</strong> <strong>não deve ficar indisponível</strong>
+        caso o sistema de consolidação diária esteja fora do ar
+    </li>
+    <li>
+        Em dias de pico, o serviço de consolidação diária deve suportar
+        <strong>até 50 requisições por segundo</strong>
+    </li>
+    <li>
+        É aceitável uma perda máxima de <strong>5% das requisições</strong> em cenários de alta carga
+    </li>
+</ul>

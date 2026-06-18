@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Consolidador.Worker/Consolidador.Worker.csproj" />
+    <Project Path="src/Core.Domain/Core.csproj" Id="6a14412d-f63a-4b66-87ab-320e952b5402" />
+    <Project Path="src/Frontend.Web/BlazorApp.csproj" />
+    <Project Path="src/Infrastructure/Infrastructure.csproj" />
+    <Project Path="src/Lancamentos.Api/Lancamentos.Api.csproj" />
+    <Project Path="src/Relatorios.Api/Relatorios.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="test/Api.IntegrationTests/Api.IntegrationTests.csproj" />
+    <Project Path="test/Core.UnitTests/Core.UnitTests.csproj" />
+    <Project Path="test/Infra.UnisTests/Infra.UnitTests.csproj" />
+  </Folder>
+</Solution>
