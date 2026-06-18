@@ -2,6 +2,8 @@
 
 Artefatos de **governança e modelagem** exigidos pelo desafio de Arquiteto de Soluções. O [README principal](../README.md) concentra operação (como rodar, APIs, diagramas de sequência, FinOps); este diretório concentra **visão sistêmica, decisões formalizadas e requisitos refinados**.
 
+> **Convenção:** [C4 PlantUML](architecture/c4-context.md) para estrutura · [diagramas de sequência](architecture/sequences.md) para features.
+
 > O desafio deixa claro: não é necessário implementar tudo em código, mas **sim** registrar decisões e representações arquiteturais no repositório.
 
 ## Guia rápido para avaliação
@@ -50,7 +52,7 @@ Siga a ordem em [Como avaliar este projeto](../README.md#como-avaliar-este-proje
 | Arquitetura de contexto e segregação de processos | [C4 Nível 2](architecture/c4-containers.md) |
 | Padrões arquiteturais e trade-offs | [ADRs](adr/README.md) |
 | Integração entre sistemas e serviços | [C4 Nível 1](architecture/c4-context.md) · [README §6](../README.md) |
-| Documentação de decisões e diagramas | Este índice + [README §13](../README.md) (sequência) |
+| Documentação de decisões e diagramas | C4 + sequências por feature |
 
 ---
 
@@ -58,8 +60,10 @@ Siga a ordem em [Como avaliar este projeto](../README.md#como-avaliar-este-proje
 
 | Artefato | Descrição |
 |----------|-----------|
-| [C4 — Nível 1 (Contexto)](architecture/c4-context.md) | Atores, sistemas externos, capacidades de negócio |
-| [C4 — Nível 2 (Containers)](architecture/c4-containers.md) | Containers, responsabilidades e protocolos |
+| [C4 — Nível 1 (Contexto)](architecture/c4-context.md) | C4 PlantUML — atores, sistemas externos |
+| [C4 — Nível 2 (Containers)](architecture/c4-containers.md) | C4 PlantUML — containers e protocolos |
+| [Sequências por feature](architecture/sequences.md) | PlantUML — diagramas de sequência (RF01–RF10) |
+| [Diagramas (PlantUML + SVG)](images/README.md) | Fontes `.puml` e regeneração de imagens |
 | [ADRs](adr/README.md) | Decisões com contexto, alternativas e consequências |
 | [Requisitos Funcionais](requirements/requisitos-funcionais.md) | RFs com objetivo de negócio, regras e critérios de aceite |
 | [Requisitos Não Funcionais](requirements/requisitos-nao-funcionais.md) | RNFs mensuráveis e ligação com decisões |

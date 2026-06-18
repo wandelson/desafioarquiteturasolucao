@@ -107,18 +107,9 @@ Exemplo decodificado (payload):
 
 ## 6. Enforcement em camadas
 
-```mermaid
-flowchart TD
-    A[Request HTTPS] --> B[CloudFront / API Gateway]
-    B --> C{JWT Authorizer}
-    C -->|inválido| D[401]
-    C -->|válido| E[Lambda / API .NET]
-    E --> F{Authorization Handler}
-    F -->|sem permissão| G[403]
-    F -->|ok| H[Application Handler]
-    H --> I[Repository com filtro merchant_id]
-    I --> J[(Aurora / Redis)]
-```
+![RBAC — enforcement em camadas](../images/svg/seq-rbac-enforcement.svg)
+
+**Fonte PlantUML:** [`seq-rbac-enforcement.puml`](../images/plantuml/seq-rbac-enforcement.puml) · [Sequências](../architecture/sequences.md#rf10--enforcement-rbac)
 
 ### 6.1 API Gateway (borda)
 

@@ -1,0 +1,31 @@
+@startuml seq-fluxo-completo
+title Fluxo completo - Registrar lancamento ate consultar saldo
+
+actor Comerciante
+participant "Front" as Front
+participant "API Lancamentos" as ApiLanc
+participant "API Relatorios" as ApiRel
+database "PostgreSQL" as DB
+queue SQS
+participant "Worker" as Worker
+
+== Write path (RF01) ==
+Comerciante -> Front: Novo lancamento
+Front -> ApiLanc: POST /api/lancamentos
+ApiLanc -> DB: Salva lancamento
+ApiLanc -> SQS: LancamentoCriado
+ApiLanc --> Front: 201 Created
+
+== Async (RF04/RF05) ==
+SQS -> Worker: Evento
+Worker -> DB: Recalcula saldo do dia
+Worker -> DB: UPSERT saldos_diarios
+
+== Read path (RF07) ==
+Comerciante -> Front: Consulta dia
+Front -> ApiRel: GET /api/relatorios/{dia}
+ApiRel -> DB: SELECT saldo
+ApiRel --> Front: 200 ou 204
+Front --> Comerciante: Saldo consolidado
+
+@enduml

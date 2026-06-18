@@ -1,6 +1,6 @@
 # C4 Model — Nível 1: Diagrama de Contexto
 
-> **Propósito:** comunicar para stakeholders executivos e técnicos *o que* o sistema faz, *quem* interage e *com quais sistemas externos* se integra — sem entrar em detalhes de implementação (Lambda, filas, bancos).
+> **Notação:** [C4 Model](https://c4model.com/) com [C4-PlantUML](https://github.com/plantuml-stdlib/C4-PlantUML) (`Person`, `System`, `System_Ext`, `Rel`).
 
 ## Escopo do sistema
 
@@ -8,30 +8,9 @@ O **Sistema de Fluxo de Caixa** permite que comerciantes registrem movimentaçõ
 
 ## Diagrama de Contexto (C1)
 
-```mermaid
-C4Context
-    title Diagrama de Contexto — Sistema de Fluxo de Caixa
+![C4 Nível 1 — Diagrama de Contexto](../images/svg/c4-context.svg)
 
-    Person(comerciante, "Comerciante", "Operador ou gestor da loja que registra movimentações e consulta saldos diários")
-    Person(auditor, "Auditor interno", "Consulta relatórios consolidados para conferência; não altera lançamentos")
-    Person(ops, "Equipe de Operações", "Monitora saúde do sistema, filas e incidentes")
-
-    System(fluxoCaixa, "Sistema de Fluxo de Caixa", "Registra lançamentos, consolida saldos por dia de forma assíncrona e expõe relatórios de consulta rápida")
-
-    System_Ext(legado, "Sistema Legado de Caixa", "Monólito em descomissionamento; ainda atende funcionalidades não migradas")
-    System_Ext(cognito, "Amazon Cognito", "Identity Provider centralizado — OAuth2/OIDC, emissão de JWT com papéis e tenant")
-    System_Ext(cloudwatch, "Amazon CloudWatch", "Logs, métricas, alarmes e dashboards operacionais")
-
-    Rel(comerciante, fluxoCaixa, "Registra lançamentos e consulta saldos/relatórios", "HTTPS")
-    Rel(auditor, fluxoCaixa, "Consulta relatórios consolidados (somente leitura)", "HTTPS")
-    Rel(ops, cloudwatch, "Monitora disponibilidade e erros")
-
-    Rel(comerciante, legado, "Usa funcionalidades ainda não migradas", "HTTPS")
-    Rel(comerciante, cognito, "Autentica (SSO)", "OIDC")
-    Rel(fluxoCaixa, cognito, "Valida tokens JWT", "JWKS/OIDC")
-    Rel(legado, fluxoCaixa, "Sincroniza dados históricos", "CDC")
-    Rel(fluxoCaixa, cloudwatch, "Envia logs e métricas")
-```
+**Fonte PlantUML (C4):** [`c4-context.puml`](../images/plantuml/c4-context.puml)
 
 ## Atores e motivações
 
@@ -59,7 +38,7 @@ C4Context
 ## O que este diagrama *não* mostra (deliberadamente)
 
 - Containers internos (APIs, workers, bancos) → ver [C4 Nível 2](c4-containers.md)
-- Fluxos de sequência por endpoint → ver [README seção 13](../../README.md)
+- Fluxos de sequência por feature → ver [Diagramas de Sequência](sequences.md)
 - Decisões tecnológicas e trade-offs → ver [ADRs](../adr/README.md)
 
 ## Escopo: arquitetura-alvo vs. POC

@@ -1,0 +1,27 @@
+@startuml c4-context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C4 Nivel 1 - Diagrama de Contexto\nSistema de Fluxo de Caixa
+
+Person(comerciante, "Comerciante", "Operador ou gestor da loja que registra movimentacoes e consulta saldos")
+Person(auditor, "Auditor interno", "Consulta relatorios consolidados para conferencia")
+Person(ops, "Equipe de Operacoes", "Monitora saude do sistema, filas e incidentes")
+
+System(fluxo_caixa, "Sistema de Fluxo de Caixa", "Registra lancamentos, consolida saldos por dia de forma assincrona e expoe relatorios")
+
+System_Ext(legado, "Sistema Legado de Caixa", "Monolito em descomissionamento")
+System_Ext(cognito, "Amazon Cognito", "Identity Provider OAuth2/OIDC")
+System_Ext(cloudwatch, "Amazon CloudWatch", "Logs, metricas e alarmes")
+
+Rel(comerciante, fluxo_caixa, "Registra lancamentos e consulta saldos", "HTTPS")
+Rel(auditor, fluxo_caixa, "Consulta relatorios", "HTTPS")
+Rel(ops, cloudwatch, "Monitora disponibilidade")
+Rel(comerciante, legado, "Funcionalidades nao migradas", "HTTPS")
+Rel(comerciante, cognito, "Autentica (SSO)", "OIDC")
+Rel(fluxo_caixa, cognito, "Valida tokens JWT", "JWKS")
+Rel(legado, fluxo_caixa, "Sincroniza dados historicos", "CDC")
+Rel(fluxo_caixa, cloudwatch, "Envia logs e metricas")
+
+@enduml

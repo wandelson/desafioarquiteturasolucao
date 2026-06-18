@@ -1,0 +1,38 @@
+@startuml seq-rf07-consultar-saldo
+title RF07 - Consultar saldo diario consolidado
+
+actor Comerciante
+participant "Front Blazor" as Front
+participant "API Gateway" as APIGW
+participant "API Relatorios" as ApiRel
+database "Redis" as Redis
+database "Aurora / PostgreSQL" as DB
+
+Comerciante -> Front: Seleciona data
+Front -> APIGW: GET /api/relatorios/{dia}\nBearer JWT
+APIGW -> APIGW: Valida JWT e scope\nrelatorios:read
+APIGW -> ApiRel: Encaminha request
+
+ApiRel -> Redis: GET saldo:{merchant}:{dia}
+alt Cache hit - producao
+    Redis --> ApiRel: Saldo consolidado
+    ApiRel --> APIGW: 200 OK { dia, saldo }
+    APIGW --> Front: Relatorio
+    Front --> Comerciante: Exibe saldo do dia
+else Cache miss
+    Redis --> ApiRel: null
+    ApiRel -> DB: SELECT saldos_diarios WHERE dia = :dia
+    alt Registro encontrado
+        DB --> ApiRel: Saldo
+        ApiRel -> Redis: Repopula cache
+        ApiRel --> APIGW: 200 OK { dia, saldo }
+    else Sem consolidacao ainda
+        DB --> ApiRel: vazio
+        ApiRel --> APIGW: 204 No Content
+        note right: RN07.3 - aguarda RF04/RF05
+    end
+    APIGW --> Front: Resposta
+    Front --> Comerciante: Saldo ou estado vazio
+end
+
+@enduml

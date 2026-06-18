@@ -6,6 +6,8 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 
 > **Legenda Status POC:** ✅ Implementado | ⚠️ Parcial | ❌ Não implementado | 📋 Apenas especificado
 
+> **Diagramas de feature:** cada RF relevante possui [diagrama de sequência](../architecture/sequences.md) (PlantUML). Visão estrutural: [C4](../architecture/c4-context.md).
+
 ---
 
 ## RF01 — Registrar lançamento financeiro
@@ -43,6 +45,12 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 
 `POST /api/lancamentos` — ver [README](../../README.md)
 
+### Diagrama de sequência
+
+![RF01](../images/svg/seq-rf01-registrar-lancamento.svg)
+
+**Fonte PlantUML:** [`seq-rf01-registrar-lancamento.puml`](../images/plantuml/seq-rf01-registrar-lancamento.puml) · [Índice](../architecture/sequences.md)
+
 **Status POC:** ⚠️ Core implementado; auth, tenant e idempotência ausentes
 
 ---
@@ -70,6 +78,12 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 - [ ] GET com filtros retorna apenas lançamentos do merchant autenticado
 - [ ] Resposta paginada com `totalCount`
 
+### Diagrama de sequência
+
+![RF02](../images/svg/seq-rf02-consultar-lancamentos.svg)
+
+**Fonte PlantUML:** [`seq-rf02-consultar-lancamentos.puml`](../images/plantuml/seq-rf02-consultar-lancamentos.puml)
+
 **Status POC:** ❌ Endpoint não exposto (repositório `ObterPorDiaAsync` existe para uso interno da consolidação)
 
 ---
@@ -96,6 +110,8 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 - [ ] Mensagem visível na fila `lancamento-criado` após POST bem-sucedido
 - [ ] Consumer processa em < 5 s (p95) em carga normal
 
+> Sequência integrada ao RF01 — ver [seq-rf01-registrar-lancamento.puml](../images/plantuml/seq-rf01-registrar-lancamento.puml)
+
 **Status POC:** ⚠️ Publicação funciona; sem outbox nem `MerchantId`
 
 ---
@@ -117,6 +133,12 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 | RN04.3 | Após esgotar retries → DLQ | ❌ |
 | RN04.4 | Log estruturado com `LancamentoId`, `Dia`, `correlationId` | ⚠️ `Console.WriteLine` apenas |
 
+### Diagrama de sequência
+
+![RF04/RF05](../images/svg/seq-rf04-rf05-consolidar-dia.svg)
+
+**Fonte PlantUML:** [`seq-rf04-rf05-consolidar-dia.puml`](../images/plantuml/seq-rf04-rf05-consolidar-dia.puml)
+
 **Status POC:** ⚠️
 
 ---
@@ -137,6 +159,8 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 | RN05.2 | Upsert em `saldos_diarios` (PK `dia`; produção: `(merchant_id, dia)`) | ⚠️ PK só `dia` |
 | RN05.3 | Atualizar Redis após persistir SQL (produção) | ❌ ADR-0004 |
 | RN05.4 | Dia sem lançamentos → saldo 0 ou ausência de registro (definir: **ausência = 404 na consulta**) | ⚠️ Sem lançamentos = sem registro |
+
+> Sequência: [seq-rf04-rf05-consolidar-dia.puml](../images/plantuml/seq-rf04-rf05-consolidar-dia.puml)
 
 **Status POC:** ⚠️ Lógica correta para single-tenant
 
@@ -186,6 +210,12 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 - [ ] Retorno coerente quando dia inexistente (padronizar 404)
 - [ ] Apenas `relatorios:read` autorizado
 
+### Diagrama de sequência
+
+![RF07](../images/svg/seq-rf07-consultar-saldo.svg)
+
+**Fonte PlantUML:** [`seq-rf07-consultar-saldo.puml`](../images/plantuml/seq-rf07-consultar-saldo.puml)
+
 **Status POC:** ⚠️
 
 ---
@@ -227,6 +257,12 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 | RN09.3 | Refresh token rotativo |
 | RN09.4 | MFA opcional para `merchant_admin` (produção) |
 
+### Diagrama de sequência
+
+![RF09/RF10](../images/svg/seq-rf09-rf10-autenticacao.svg)
+
+**Fonte PlantUML:** [`seq-rf09-rf10-autenticacao.puml`](../images/plantuml/seq-rf09-rf10-autenticacao.puml) · [RBAC](../security/rbac.md)
+
 **Status POC:** ❌ — ADR-0006
 
 ---
@@ -242,6 +278,12 @@ Especificação expandida dos requisitos funcionais do Sistema de Fluxo de Caixa
 ### Regras de negócio
 
 Ver documento completo: [RBAC](../security/rbac.md)
+
+### Diagrama de sequência
+
+![RF10](../images/svg/seq-rbac-enforcement.svg)
+
+**Fonte PlantUML:** [`seq-rbac-enforcement.puml`](../images/plantuml/seq-rbac-enforcement.puml)
 
 **Status POC:** ❌ — principal gap citado no feedback
 
@@ -294,9 +336,10 @@ Ver documento completo: [RBAC](../security/rbac.md)
 
 ## Rastreabilidade
 
-| RF | ADRs relacionados |
-|----|-------------------|
-| RF01–RF05 | ADR-0002, ADR-0003, ADR-0005, ADR-0008 |
-| RF07–RF08 | ADR-0004 |
-| RF09–RF10 | ADR-0006, ADR-0009 |
-| RF01, RF07 | ADR-0007, ADR-0010 |
+| RF | ADRs relacionados | Sequência |
+|----|-------------------|-----------|
+| RF01–RF03 | ADR-0002, ADR-0005 | [seq-rf01](../architecture/sequences.md#rf01--rf03--registrar-lançamento) |
+| RF04–RF05 | ADR-0002, ADR-0008 | [seq-rf04-rf05](../architecture/sequences.md#rf04--rf05--consolidar-dia) |
+| RF07 | ADR-0004 | [seq-rf07](../architecture/sequences.md#rf07--consultar-saldo) |
+| RF02 | — | [seq-rf02](../architecture/sequences.md#rf02--consultar-lançamentos) |
+| RF09–RF10 | ADR-0006, ADR-0009 | [seq-rf09-rf10](../architecture/sequences.md#rf09--rf10--autenticação) · [seq-rbac](../architecture/sequences.md#rf10--enforcement-rbac) |

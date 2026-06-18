@@ -1,0 +1,35 @@
+@startuml seq-rf04-rf05-consolidar-dia
+title RF04 + RF05 - Processar evento e consolidar saldo diario
+
+queue "SQS lancamento-criado" as SQS
+participant "Worker Consolidacao" as Worker
+database "Aurora / PostgreSQL" as DB
+database "Redis / saldos_diarios" as Cache
+
+SQS -> Worker: LancamentoCriadoEvent\n(LancamentoId, Dia, Valor, Tipo)
+activate Worker
+
+Worker -> Worker: Log estruturado\ncorrelationId, LancamentoId
+
+alt Falha transitoria
+    Worker -> Worker: Retry MassTransit (ate 3x)
+    note right: RN04.2
+else Processamento
+    Worker -> DB: SELECT lancamentos WHERE dia = :dia
+    DB --> Worker: Lista de lancamentos
+    Worker -> Worker: saldo = SUM(ValorEfetivo())
+    note right: RN05.1 - recalculo completo do dia
+    Worker -> DB: UPSERT saldos_diarios
+    Worker -> Cache: SET saldo:{merchant}:{dia}
+    note right: Producao: Redis\nPOC: apenas PostgreSQL
+    Worker --> SQS: ACK mensagem
+end
+
+deactivate Worker
+
+alt Esgotou retries
+    SQS -> SQS: Move para DLQ
+    note right: RN04.3 / RF06
+end
+
+@enduml

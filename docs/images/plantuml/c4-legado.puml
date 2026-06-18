@@ -1,0 +1,19 @@
+@startuml c4-legado
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title C4 - Sistema Legado (monolito)
+
+Person(comerciante, "Comerciante", "Usuario do front legado")
+
+System_Boundary(legado, "Sistema Legado de Caixa") {
+    Container(front, "Front-End Legado", "Monolito web", "Interface do comerciante")
+    Container(api, "API Legada", "Monolito", "Regras de negocio acopladas")
+    ContainerDb(db, "Banco Legado", "RDBMS", "Dados de caixa")
+}
+
+Rel(comerciante, front, "Usa", "HTTPS")
+Rel(front, api, "Chama", "HTTPS")
+Rel(api, db, "Le/Escreve", "SQL")
+
+@enduml

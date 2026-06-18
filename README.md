@@ -6,17 +6,19 @@ O enunciado prioriza **decisões e representações arquiteturais**; o código �
 
 | Ordem | O que avaliar | Onde |
 |:-----:|---------------|------|
-| 1 | Visão de contexto e capacidades de negócio | [C4 Nível 1](docs/architecture/c4-context.md) |
-| 2 | Segregação de serviços e responsabilidades | [C4 Nível 2](docs/architecture/c4-containers.md) |
+| 1 | Visão de contexto e capacidades de negócio | [C4 Nível 1](docs/architecture/c4-context.md) — **PlantUML C4** |
+| 2 | Segregação de serviços e responsabilidades | [C4 Nível 2](docs/architecture/c4-containers.md) — **PlantUML C4** |
 | 3 | Trade-offs e alternativas rejeitadas | [ADRs](docs/adr/README.md) |
 | 4 | Requisitos com porquê e regras de negócio | [Requisitos Funcionais](docs/requirements/requisitos-funcionais.md) |
 | 5 | RNFs mensuráveis (incl. 50 req/s e 5% perda) | [Requisitos Não Funcionais](docs/requirements/requisitos-nao-funcionais.md) |
 | 6 | RBAC, JWT e critérios de integração | [RBAC](docs/security/rbac.md) |
 | 7 | Rastreabilidade enunciado → documento | [`docs/README.md`](docs/README.md) |
-| 8 | Fluxos técnicos e execução local | §13 e §15 abaixo · `src/` · `test/` |
+| 8 | Fluxos por feature (sequência) | §13 · [`sequences.md`](docs/architecture/sequences.md) |
 
 **POC implementado em código:** registro de lançamentos, fila SQS (LocalStack), worker de consolidação, consulta de saldo, testes unitários/integração.  
 **Especificado na documentação (produção):** Cognito, RBAC multi-tenant, Redis, Lambda, DLQ — ver coluna *Estado no POC* nos ADRs.
+
+> **Convenção de diagramas:** estrutura → **C4 PlantUML** · comportamento por feature → **sequência PlantUML** ([`sequences.md`](docs/architecture/sequences.md))
 
 ---
 
@@ -37,7 +39,7 @@ Este README cobre operação, diagramas de sequência e FinOps. A documentação
 | Estimativa de custos | [§14](#14-finops-high-level) |
 | Monitoramento e Observabilidade | [§11](#11-monitoramento-e-observabilidade) |
 | Segurança (consumo de serviços) | [§12](#12-segurança-e-integração) · [RBAC](docs/security/rbac.md) |
-| Fluxos técnicos (sequência) | [§13](#13-diagramas-de-sequência-high-level) |
+| Fluxos técnicos (sequência por feature) | [§13](#13-diagramas-de-sequência-features) · [sequences.md](docs/architecture/sequences.md) |
 | Testes | [§16](#16-testes-funcionais-e-unitarios) |
 | Como rodar localmente | [§15](#15como-rodar-a-aplicação-localmente) |
 | Evoluções futuras | [§18](#18-proximos--passos) |
@@ -109,22 +111,9 @@ Toda a plataforma — legado e novo — usa **o mesmo Identity Provider** (ex.: 
 
 # 4.Arquitetura Atual (Legado)
 
-```mermaid
+![Sistema Legado](docs/images/svg/c4-legado.svg)
 
-flowchart TD
-
-    User["🧑‍💼 Comerciante (Front Legado)"]
-
-    subgraph Legacy["🏢 Sistema Legado"]
-        LegacyFront["🖥️ Front-End Legado"]
-        LegacyAPI["🔧 API Legada"]
-        LegacyDB["🗄️ Banco de Dados Legado"]
-    end
-
-    User --> LegacyFront
-    LegacyFront --> LegacyAPI
-    LegacyAPI --> LegacyDB
-```
+**Fonte PlantUML (C4):** [`c4-legado.puml`](docs/images/plantuml/c4-legado.puml)
 
 
 
@@ -139,139 +128,22 @@ flowchart TD
 - Migração gradual de ambiente legado  
 ---
 
-```mermaid
+![Arquitetura Alvo — C4 Nível 2](docs/images/svg/c4-containers-prod.svg)
 
-flowchart TD
-    User["🧑‍💼 Comerciante<br/>Blazor WebAssembly"]
-
-    subgraph Edge["🌎 CDN + Static Web"]
-        CF["🌐 CloudFront"]
-        S3["📦 S3 Static Website<br/>Blazor WASM"]
-    end
-
-    subgraph AWS_Cloud["☁️ AWS Cloud (Backend)"]
-        
-        Cognito["🔐 Cognito<br/>OAuth2 + OIDC"]
-        APIGW["🛡️ API Gateway<br/>Validação JWT"]
-        LambdaL["⚡ Lambda Lançamentos"]
-        LambdaC["⚡ Lambda Consolidação"]
-        LambdaR["⚡ Lambda Relatórios"]
-        SQS["📬 SQS / EventBridge<br/>Eventos Assíncronos"]
-        Aurora["🗄️ Aurora Serverless v2<br/>Banco ACID"]
-        Redis["🚀 Redis (ElastiCache)<br/>Saldos Consolidados"]
-        CloudWatch["📊 CloudWatch<br/>Logs / Métricas / Alarmes"]
-    end
-
-    User --> CF
-    CF --> S3
-    S3 --> User
-
-    User --> Cognito
-    User --> APIGW
-
-    APIGW --> LambdaL
-    APIGW --> LambdaR
-
-    LambdaL --> Aurora
-    LambdaL --> SQS
-
-    SQS --> LambdaC
-    LambdaC --> Redis
-
-    LambdaR --> Redis
-    LambdaR --> Aurora
-
-    LambdaL --> CloudWatch
-    LambdaC --> CloudWatch
-    LambdaR --> CloudWatch
-
-```
+**Fonte PlantUML (C4):** [`c4-containers-prod.puml`](docs/images/plantuml/c4-containers-prod.puml) · [Documentação C4 L2](docs/architecture/c4-containers.md)
 
 
 # 6. Arquitetura de Transição (Migração do Legado) - Strangler
 
-```mermaid
-flowchart LR
+![Arquitetura de Transição](docs/images/svg/c4-transicao-strangler.svg)
 
-    User["🧑‍💼 Comerciante"]
-
-    subgraph IdP["🔐 Identity Provider<br/>(Cognito / OIDC)"]
-        Auth["Emissão de Tokens<br/>OAuth2 + OpenID Connect"]
-    end
-
-    %% FRONT-ENDS
-    subgraph Fronts["Interfaces"]
-        LegacyFront["🖥️ Front-End Legado<br/>(Integrado ao IdP)"]
-        NewFront["🌐 Novo Front Blazor<br/>S3 + CloudFront<br/>(OIDC)"]
-    end
-
-    %% LEGADO
-    subgraph Legacy["🏢 Sistema Legado"]
-        LegacyAPI["🔧 API Legada"]
-        LegacyDB["🗄️ Banco Legado"]
-    end
-
-    %% MIGRAÇÃO
-    subgraph Migration["🔄 Migração (Strangler Fig)"]
-        CDC["🔁 CDC / Replicação de Dados"]
-    end
-
-    %% NOVO BACKEND
-    subgraph NewBackend["☁️ Novo Backend AWS"]
-        APIGW["🛡️ API Gateway<br/>Authorizer OIDC"]
-        LambdaRel["⚡ Lambda Relatórios"]
-        LambdaLanc["⚡ Lambda Lançamentos"]
-        Aurora["🗄️ Aurora Serverless"]
-        Redis["🚀 Redis (Cache de Saldos)"]
-    end
-
-    %% FLUXOS BÁSICOS
-
-    User --> LegacyFront
-    User --> NewFront
-
-    %% Ambos os fronts usam o MESMO IdP
-    LegacyFront --> Auth
-    NewFront --> Auth
-
-    %% Front legado ainda chama APIs legadas
-    LegacyFront --> LegacyAPI
-    LegacyAPI --> LegacyDB
-
-    %% CDC para alimentar Aurora
-    LegacyDB --> CDC --> Aurora
-
-    %% Relatórios: front legado redireciona para novo front
-    LegacyFront -->|Relatórios: redirect| NewFront
-    NewFront --> APIGW
-    APIGW --> LambdaRel
-    LambdaRel --> Redis
-    LambdaRel --> Aurora
-
-    %% Lançamentos migrados: front legado passa a chamar novo backend
-    LegacyFront -->|Lançamentos migrados| APIGW
-    APIGW --> LambdaLanc
-    LambdaLanc --> Aurora
-
-
-```
+**Fonte PlantUML (C4):** [`c4-transicao-strangler.puml`](docs/images/plantuml/c4-transicao-strangler.puml) · [ADR-0001](docs/adr/0001-strangler-fig-migration.md)
 
 ## Fluxo de Migração (Simplificado)
 
+![Fluxo de Migração](docs/images/svg/seq-migracao-etapas.svg)
 
-```mermaid
-
-flowchart TD
-
-    A["🏢 1. Sistema Legado em Produção"] --> B["🌱 2. Criar Novo Front Blazor<br/>em S3 + CloudFront"]
-    B --> C["🔐 3. Integrar Cognito (OIDC)"]
-    C --> D["⚡ 4. Criar Novas APIs Serverless<br/>(API Gateway + Lambda)"]
-    D --> E["🔀 5. Redirecionar Funcionalidades<br/>Específicas para o Novo Backend"]
-    E --> F["🌳 6. Expandir o Novo Sistema<br/>e Estrangular o Legado"]
-    F --> G["🛑 7. Desligar o Legado"]
-
-
-```
+**Fonte PlantUML:** [`seq-migracao-etapas.puml`](docs/images/plantuml/seq-migracao-etapas.puml)
 
 
 
@@ -555,59 +427,35 @@ Produtos (detalhes nos ADRs):
 
 
 
-# 13. Diagramas de Sequência (High-Level)
+# 13. Diagramas de Sequência (Features)
 
-## Registrar Lançamento
-```mermaid
+> **Convenção:** comportamento por feature → diagramas de sequência. Estrutura do sistema → [C4 PlantUML](docs/architecture/c4-context.md).
 
-sequenceDiagram
-    participant User as Usuário
-    participant APIGW as API Gateway
-    participant LambdaL as Lambda Lançamentos
-    participant Aurora as Aurora
-    participant SQS as SQS/EventBridge
+Índice completo com todos os fluxos: **[`docs/architecture/sequences.md`](docs/architecture/sequences.md)**
 
-    User->>APIGW: POST /lancamentos
-    APIGW->>LambdaL: Invoca função
-    LambdaL->>Aurora: Salva lançamento
-    LambdaL->>SQS: Publica evento "LançamentoCriado"
-    APIGW->>User: Sucesso
+## Fluxo completo
 
-```
+![Fluxo completo](docs/images/svg/seq-fluxo-completo.svg)
 
-## Consolidação
-```mermaid
-sequenceDiagram
-    participant SQS as SQS/EventBridge
-    participant LambdaC as Lambda Consolidação
-    participant Redis as Redis
+**Fonte PlantUML:** [`seq-fluxo-completo.puml`](docs/images/plantuml/seq-fluxo-completo.puml) · [Índice](docs/architecture/sequences.md)
 
-    SQS->>LambdaC: Evento "LançamentoCriado"
-    LambdaC->>Redis: Atualiza saldo diário
+## Registrar lançamento (RF01)
 
-```
+![Sequência - Registrar Lançamento](docs/images/svg/seq-rf01-registrar-lancamento.svg)
 
-## Consulta de Saldo
-```mermaid
-sequenceDiagram
-    participant User as Usuário
-    participant APIGW as API Gateway
-    participant LambdaR as Lambda Relatórios
-    participant Redis as Redis
-    participant Aurora as Aurora
+**Fonte PlantUML:** [`seq-rf01-registrar-lancamento.puml`](docs/images/plantuml/seq-rf01-registrar-lancamento.puml)
 
-    User->>APIGW: GET /saldos-diarios
-    APIGW->>LambdaR: Invoca função
-    LambdaR->>Redis: Consulta saldo
-    alt Cache hit
-        Redis-->>LambdaR: Retorna saldo
-    else Cache miss
-        LambdaR->>Aurora: Consulta dados
-        Aurora-->>LambdaR: Retorna saldo
-    end
-    LambdaR->>User: Retorna saldo diário
+## Consolidação (RF04/RF05)
 
-```
+![Sequência - Consolidação](docs/images/svg/seq-rf04-rf05-consolidar-dia.svg)
+
+**Fonte PlantUML:** [`seq-rf04-rf05-consolidar-dia.puml`](docs/images/plantuml/seq-rf04-rf05-consolidar-dia.puml)
+
+## Consulta de saldo (RF07)
+
+![Sequência - Consulta de Saldo](docs/images/svg/seq-rf07-consultar-saldo.svg)
+
+**Fonte PlantUML:** [`seq-rf07-consultar-saldo.puml`](docs/images/plantuml/seq-rf07-consultar-saldo.puml)
 # 14. Finops (High-Level)
 ## 📊 FinOps – Resumo de Custos AWS
 
@@ -660,8 +508,11 @@ Para executar o LocalStack localmente utilizando Docker, certifique-se de que os
 - macOS
 - Linux
 
-1) Subir o localstack/postgree usando o docker
-<img width="341" height="477" alt="image" src="https://github.com/user-attachments/assets/0cac707c-48ae-43b4-8bb7-57a2039a96bd" />
+1) Subir o localstack/postgres usando o docker
+
+> **Screenshots:** as imagens abaixo foram hospedadas no GitHub. Se não carregarem localmente, visualize o README em [github.com](https://github.com) após o push, ou substitua por arquivos em `docs/images/`.
+
+<img width="341" height="477" alt="Docker compose" src="https://github.com/user-attachments/assets/0cac707c-48ae-43b4-8bb7-57a2039a96bd" />
 ```  
 docker-compose up -d
 ```  

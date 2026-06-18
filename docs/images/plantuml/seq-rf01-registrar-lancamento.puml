@@ -1,0 +1,31 @@
+@startuml seq-rf01-registrar-lancamento
+title RF01 + RF03 - Registrar lancamento e publicar evento
+
+actor Comerciante
+participant "Front Blazor" as Front
+participant "API Gateway" as APIGW
+participant "API Lancamentos" as ApiLanc
+database "Aurora / PostgreSQL" as DB
+queue "SQS lancamento-criado" as SQS
+
+Comerciante -> Front: Preenche credito/debito
+Front -> APIGW: POST /api/lancamentos\nBearer JWT
+APIGW -> APIGW: Valida JWT e scope\nlancamentos:write
+APIGW -> ApiLanc: Encaminha request
+
+ApiLanc -> ApiLanc: Valida regras RN01.x\n(valor, descricao, data, tipo)
+alt Dados invalidos
+    ApiLanc --> APIGW: 400 Bad Request
+    APIGW --> Front: Erro de validacao
+else Dados validos
+    ApiLanc -> DB: INSERT lancamento
+    DB --> ApiLanc: Commit OK
+    ApiLanc -> SQS: Publica LancamentoCriadoEvent
+    note right of SQS: RN03.1 - evento apos persistencia
+    ApiLanc --> APIGW: 201 Created
+    APIGW --> Front: Sucesso
+    Front --> Comerciante: Confirmacao imediata
+    note over Comerciante, SQS: Consolidacao ocorre de forma assincrona (RF04)
+end
+
+@enduml
